@@ -1,0 +1,96 @@
+function doPost(e) {
+  var sheetID = "1PCeFhoLtYjwyQQJIbK3xRFui4IdQn7EsK-jETmJQk6k";
+  var sheet = SpreadsheetApp.openById(sheetID).getActiveSheet();
+  var formData = e.parameter;
+  
+
+  var referenceNumber = generateReferenceNumber(sheet);
+  // Define the order of columns in the spreadsheet
+  var columnOrder = ["firstName", "lastName", "email","contactNumber", "feedback"];
+  
+  // Extract form data and append to the sheet in the specified order
+  var rowData = [referenceNumber];
+  for (var i = 0; i < columnOrder.length; i++) {
+    var field = columnOrder[i];
+    rowData.push(formData[field] || ""); // If form field is empty, insert empty string
+  }
+  sheet.appendRow(rowData);
+  
+  return ContentService.createTextOutput("Form submission successful! Here is your Reference Number for monitory purposes: "+referenceNumber);
+}
+
+function generateReferenceNumber(sheet) {
+  var referenceNumber;
+  var isUnique = false;
+
+  // Loop until a unique reference number is generated
+  while (!isUnique) {
+    // Generate a potential reference number
+    var timestamp = new Date().getTime();
+    var randomNumber = Math.floor(Math.random() * 10000);
+    referenceNumber = timestamp + "" + randomNumber;
+
+    // Check if the reference number already exists in the spreadsheet
+    var existingReferenceNumbers = sheet.getRange("A:A").getValues().flat();
+    if (!existingReferenceNumbers.includes(referenceNumber)) {
+      // If the reference number is unique, set isUnique to true to exit the loop
+      isUnique = true;
+    }
+  }
+
+  return referenceNumber;
+}
+
+
+
+
+function doGet(request) {
+  var referenceNumber = request.parameter.referenceNumber;
+  var rowData = searchData(referenceNumber);
+  
+  var html = "<html><body>";
+  html += "<h1>Search Result</h1>";
+  
+  if (rowData) {
+    var fullName = rowData[0] + " " + rowData[1]; // Combine First Name and Last Name
+    html += "<p><strong>Name:</strong> " + fullName + "</p>";
+    html += "<p><strong>Feedback:</strong> " + rowData[2] + "</p>";
+    html += "<p><strong>Action Taken:</strong> " + rowData[3] + "</p>";
+  } else {
+    html += "<p>Reference number not found.</p>";
+  }
+
+  // Add back button
+  html += "<a href='http://127.0.0.1:5501/index.html'>Back</a>";
+
+  html += "</body></html>";
+  
+  return HtmlService.createHtmlOutput(html);
+}
+
+
+
+
+
+function searchData(referenceNumber) {
+  var sheetID = "1PCeFhoLtYjwyQQJIbK3xRFui4IdQn7EsK-jETmJQk6k"; // Replace with your spreadsheet ID
+  var sheet = SpreadsheetApp.openById(sheetID).getActiveSheet();
+  
+  // Find the row containing the reference number
+  var referenceColumnValues = sheet.getRange("A:A").getValues().flat(); // Assuming reference numbers are in column A
+  var rowIndex = referenceColumnValues.indexOf(referenceNumber) + 1; // Adding 1 to convert from 0-based index to 1-based index
+  
+  if (rowIndex !== -1) { // Reference number found
+    // Fetching data from specific columns
+    var firstName = sheet.getRange(rowIndex, 2).getValue(); // Fetching First Name from column B
+    var lastName = sheet.getRange(rowIndex, 3).getValue(); // Fetching Last Name from column C
+    var feedback = sheet.getRange(rowIndex, 6).getValue(); // Fetching Feedback from column F
+    var actionTaken = sheet.getRange(rowIndex, 7).getValue(); // Fetching Action Taken from column G
+    
+    // Return the fetched data as an array
+    return [firstName, lastName, feedback, actionTaken];
+  } else { // Reference number not found
+    return null;
+  }
+}
+
